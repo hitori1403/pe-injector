@@ -1,2 +1,2 @@
 # pe-injection
-simple malware performs PE Injection
+simple malware that performs PE Injection
