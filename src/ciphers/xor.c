@@ -1,6 +1,6 @@
 #define BYTEn(x, n) ((x >> 8 * n) & 0xff)
 
-void cipher(char *block, unsigned int size, unsigned long long key) {
+void xorCipher(char *block, unsigned int size, unsigned long long key) {
     __asm__(
         "call next;"
         "next: pop %rax;"

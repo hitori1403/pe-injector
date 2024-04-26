@@ -1,9 +1,9 @@
 main:
 	nasm -fwin64 src/start.asm -o obj/start.o
-	gcc obj/start.o src/shellcode.c -o bin/shellcode.exe -O3 -flto -s -Wall -Wextra -fdata-sections -ffunction-sections -fno-asynchronous-unwind-tables -fno-ident -nostdlib 
+	gcc obj/start.o src/shellcode.c -o bin/shellcode.exe -O2 -s -fPIC -flto -Wall -Wextra -fdata-sections -ffunction-sections -fno-asynchronous-unwind-tables -fno-ident -nostdlib 
 
 cipher:
-	gcc .\src\ciphers\cipher.c -o .\obj\cipher.o -O3 -s -Wall -Wextra -fdata-sections -ffunction-sections -fno-asynchronous-unwind-tables -fno-ident -nostdlib -fPIC
+	gcc .\src\ciphers\rot128.c -o .\obj\cipher.o -O2 -s -Wall -Wextra -fdata-sections -ffunction-sections -fno-asynchronous-unwind-tables -fno-ident -nostdlib -fPIC
 	objcopy --dump-section .text=obj\cipher.bin .\obj\cipher.o
 	print_as_shellcode.exe obj\cipher.bin
 

