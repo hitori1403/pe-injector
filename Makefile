@@ -1,6 +1,6 @@
 main:
 	nasm -fwin64 src/start.asm -o obj/start.o
-	gcc obj/start.o src/shellcode.c -o bin/shellcode.exe -g -nostdlib 
+	gcc obj/start.o src/shellcode.c -o bin/shellcode.exe -O3 -flto -s -Wall -Wextra -fdata-sections -ffunction-sections -fno-asynchronous-unwind-tables -fno-ident -nostdlib 
 
 cipher:
 	gcc .\src\ciphers\cipher.c -o .\obj\cipher.o -O3 -s -Wall -Wextra -fdata-sections -ffunction-sections -fno-asynchronous-unwind-tables -fno-ident -nostdlib -fPIC
@@ -17,7 +17,3 @@ target:
 
 run: main target
 	cd bin; ./shellcode.exe
-
-
-
-	# gcc obj/start.o src/shellcode.c -o bin/shellcode.exe -O3 -flto -s -Wall -Wextra -fdata-sections -ffunction-sections -fno-asynchronous-unwind-tables -fno-ident -nostdlib 
