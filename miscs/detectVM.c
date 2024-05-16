@@ -10,7 +10,7 @@ unsigned char vendor[20];
 int main() {
     int cpuInfo[4] = {-1};
 
-    __cpuid(cpuInfo, 1);
+    __cpuid(cpuInfo, 0x40000000);
 
     *(unsigned int *)(&vendor[0]) = cpuInfo[1];
     *(unsigned int *)(&vendor[4]) = cpuInfo[2];
