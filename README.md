@@ -22,12 +22,15 @@ It will produce a file called `shellcode.exe`. Use it carefully!
 
 Take a quick look at `Makefile` for more details.
 
-# functions
+# features
 
 - [x] Inject itself into others PE files in the same directory
 - [x] TLS Injection
 - [x] Patch `PEHeader.AddressOfEntryPoint` if TLS Injection fails
 - [ ] IAT Patching (needs more time)
+- [x] Anti-Debugging (BeingDebugged flag)
+- [x] Anti-VM based on __cpuid()
+- [x] Simple oligomorphism with XOR and ROT128
 
 # references
 
@@ -37,3 +40,4 @@ Take a quick look at `Makefile` for more details.
 - [Malware - IAT Hooking](https://trikkss.github.io/posts/iat_hooking/)
 - [Injecting Code using Imported Functions into Native PE Files](https://blog.washi.dev/posts/import-patching/)
 - [pe-loader](https://github.com/polycone/pe-loader)
+- [Al-Khaser](https://github.com/LordNoteworthy/al-khaser.git)
