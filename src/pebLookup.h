@@ -98,14 +98,12 @@ static inline LPVOID getFuncByName(HANDLE module, LPCSTR name) {
     }
 
     PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)((ULONG_PTR)module + dosHeader->e_lfanew);
-    PIMAGE_DATA_DIRECTORY dataDirectoryExports =
-        &(ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT]);
+    PIMAGE_DATA_DIRECTORY dataDirectoryExports = &(ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT]);
     if (!dataDirectoryExports->VirtualAddress) {
         return NULL;
     }
 
-    PIMAGE_EXPORT_DIRECTORY exportsDirectory =
-        (PIMAGE_EXPORT_DIRECTORY)(dataDirectoryExports->VirtualAddress + (ULONG_PTR)module);
+    PIMAGE_EXPORT_DIRECTORY exportsDirectory = (PIMAGE_EXPORT_DIRECTORY)(dataDirectoryExports->VirtualAddress + (ULONG_PTR)module);
 
     DWORD funcsListRVA = exportsDirectory->AddressOfFunctions;
     DWORD funcNamesListRVA = exportsDirectory->AddressOfNames;

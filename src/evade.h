@@ -1,12 +1,14 @@
 #include <Windows.h>
 
 #include "antiDebug/beingDebugged.h"
-#include "antiVM/VBox.h"
-#include "antiVM/VMWare.h"
+#include "antiVM/generic.h"
 #include "prototype.h"
 
-BOOL isFuckedUp(protoLoadLibraryA _LoadLibraryA, protoGetProcAddress _GetProcAddress) {
+BOOL isSuspicious() {
     if (isDebuggerPresentPEB()) {
+        return TRUE;
+    }
+    if (cpuidIsHypvervisor()) {
         return TRUE;
     }
     return FALSE;
