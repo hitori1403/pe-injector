@@ -29,6 +29,8 @@ typedef HANDLE(WINAPI *protoFindFirstFileA)(LPCSTR lpFileName, LPWIN32_FIND_DATA
 typedef BOOL(WINAPI *protoFindNextFileA)(HANDLE hFindFile, LPWIN32_FIND_DATAA lpFindFileData);
 typedef BOOL(WINAPI *protoFindClose)(HANDLE hFindFile);
 
-typedef LSTATUS(WINAPI *protoRegOpenKeyExA)(HKEY hKey, LPCSTR lpSubKey, DWORD ulOptions, REGSAM samDesired, PHKEY phkResult);
-typedef LSTATUS(WINAPI *protoRegCloseKey)(HKEY hKey);
-typedef DWORD(WINAPI *protoGetFileAttributesA)(LPCSTR lpFileName);
+// typedef LSTATUS(WINAPI *protoRegOpenKeyExA)(HKEY hKey, LPCSTR lpSubKey, DWORD ulOptions, REGSAM samDesired, PHKEY phkResult);
+// typedef LSTATUS(WINAPI *protoRegCloseKey)(HKEY hKey);
+// typedef DWORD(WINAPI *protoGetFileAttributesA)(LPCSTR lpFileName);
+
+typedef BOOLEAN(WINAPI *protoGetPwrCapabilities)(PSYSTEM_POWER_CAPABILITIES lpspc);
