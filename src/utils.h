@@ -1,6 +1,25 @@
+#pragma once
+
 #include <Windows.h>
 
 #include "prototype.h"
+
+int strcmp(const char *a, const char *b) {
+    unsigned int i;
+    for (i = 0; a[i] != 0 && b[i] != 0; i++) {
+        if (a[i] != b[i]) break;
+    }
+
+    if (a[i] == 0 && b[i] == 0) {
+        return 0;
+    }
+
+    if (a[i] < b[i]) {
+        return -1;
+    }
+
+    return 1;
+}
 
 int getFileAlignment(protoCreateFileMappingA _CreateFileMappingA, protoMapViewOfFile _MapViewOfFile, protoUnmapViewOfFile _UnmapViewOfFile,
                      protoCloseHandle _CloseHandle, HANDLE file) {
